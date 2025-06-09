@@ -2,7 +2,7 @@
 setlocal enabledelayedexpansion
 
 set "JIFFY_DIR=C:\JIFFY"
-set "TEMP_CLONE=%TEMP%\Jiffy-CLI-Temp"
+set "TEMP_CLONE=%TEMP%\Jiffy-CLI-Temp-%RANDOM%"
 set "GITHUB_URL=https://github.com/Mofasi/Jiffy-CLI.git"
 
 echo Checking for existing JIFFY installation...
@@ -31,11 +31,17 @@ if exist "%JIFFY_DIR%" (
     echo Removing previous JIFFY installation...
     rmdir /s /q "%JIFFY_DIR%" 2>nul
     
-    :: Remove from system PATH
-    powershell -noprofile -command "$path = [Environment]::GetEnvironmentVariable('Path', 'Machine'); $newPath = $path -replace [regex]::Escape('%JIFFY_DIR%') -replace ';;',';'; [Environment]::SetEnvironmentVariable('Path', $newPath.Trim(';'), 'Machine')"
+    :: Properly remove from system PATH
+    echo Removing from system PATH...
+    powershell -noprofile -command ^
+        "$oldPath = [Environment]::GetEnvironmentVariable('Path', 'Machine');" ^
+        "$newPath = ($oldPath -split ';' | Where-Object { $_ -ne '%JIFFY_DIR%' }) -join ';';" ^
+        "$newPath = $newPath.Trim(';');" ^
+        "[Environment]::SetEnvironmentVariable('Path', $newPath, 'Machine');"
 )
 
-:: Clean temp clone directory
+:: Create unique temp directory for cloning
+set "TEMP_CLONE=%TEMP%\Jiffy-CLI-Temp-%RANDOM%"
 if exist "%TEMP_CLONE%" rmdir /s /q "%TEMP_CLONE%" 2>nul
 
 :: Clone fresh repository to temp location
@@ -57,8 +63,13 @@ move /y "%TEMP_CLONE%\jiffy.php" "%JIFFY_DIR%\" >nul
 echo @echo off > "%JIFFY_DIR%\jiffy_version.cmd"
 echo echo JIFFY CLI Version 1.0 >> "%JIFFY_DIR%\jiffy_version.cmd"
 
-:: Add to system PATH
-powershell -noprofile -command "$path = [Environment]::GetEnvironmentVariable('Path', 'Machine'); if (-not $path.Contains('%JIFFY_DIR%')) { [Environment]::SetEnvironmentVariable('Path', ($path + ';%JIFFY_DIR%'), 'Machine') }"
+:: Add to system PATH only if not present
+echo Adding to system PATH...
+powershell -noprofile -command ^
+    "$path = [Environment]::GetEnvironmentVariable('Path', 'Machine');" ^
+    "if (-not ($path -split ';' -contains '%JIFFY_DIR%')) {" ^
+        "[Environment]::SetEnvironmentVariable('Path', ($path + ';%JIFFY_DIR%'), 'Machine');" ^
+    "}"
 
 :: Cleanup
 rmdir /s /q "%TEMP_CLONE%" 2>nul
