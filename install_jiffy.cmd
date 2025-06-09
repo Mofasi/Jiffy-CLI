@@ -39,15 +39,21 @@ if exist "%JIFFY_DIR%" (
         "[Environment]::SetEnvironmentVariable('Path', $newPath, 'Machine');"
 )
 
-:: Create unique temp file name for cloning
-set "TEMP_CLONE=%TEMP%\Jiffy-CLI-%RANDOM%"
+:: Create unique temp directory in %TEMP%
+set "TEMP_CLONE=%TEMP%\Jiffy-CLI-%RANDOM%-%TIME::=_%"
+set "TEMP_CLONE=%TEMP_CLONE: =0%"
+mkdir "%TEMP_CLONE%" 2>nul
 
-:: Clone directly to temporary location
-echo Cloning JIFFY CLI from GitHub...
-git clone --depth 1 "%GITHUB_URL%" "%TEMP_CLONE%"
+:: Download repository using PowerShell to avoid git directory issues
+echo Downloading JIFFY CLI from GitHub...
+powershell -noprofile -command ^
+    "Set-Location '%TEMP_CLONE%';" ^
+    "git clone '%GITHUB_URL%' . 2>&1 | Out-Null;" ^
+    "if (-not (Test-Path 'jiffy.php')) { exit 1 }"
 
-if not exist "%TEMP_CLONE%\jiffy.php" (
-    echo ERROR: Repository clone failed or jiffy.php not found
+if %ERRORLEVEL% NEQ 0 (
+    echo ERROR: Failed to download repository
+    rmdir /s /q "%TEMP_CLONE%" 2>nul
     exit /b 1
 )
 
@@ -68,4 +74,21 @@ powershell -noprofile -command ^
     "$path = [Environment]::GetEnvironmentVariable('Path', 'Machine');" ^
     "if (-not ($path -split ';' -contains '%JIFFY_DIR%')) {" ^
         "[Environment]::SetEnvironmentVariable('Path', ($path + ';%JIFFY_DIR%'), 'Machine');" ^
-   
+    "}"
+
+:: Cleanup
+rmdir /s /q "%TEMP_CLONE%" 2>nul
+
+echo Installation complete!
+echo JIFFY CLI has been installed to: %JIFFY_DIR%
+
+:: Create uninstall script
+echo @echo off > "%JIFFY_DIR%\uninstall_jiffy.cmd"
+echo echo Uninstalling JIFFY CLI... >> "%JIFFY_DIR%\uninstall_jiffy.cmd"
+echo rmdir /s /q "%JIFFY_DIR%" 2^>nul >> "%JIFFY_DIR%\uninstall_jiffy.cmd"
+echo powershell -noprofile -command "$oldPath = [Environment]::GetEnvironmentVariable('Path', 'Machine');$newPath = ($oldPath -split ';' ^| Where-Object { $_ -ne '%JIFFY_DIR%' }) -join ';';[Environment]::SetEnvironmentVariable('Path', $newPath, 'Machine');" >> "%JIFFY_DIR%\uninstall_jiffy.cmd"
+echo echo JIFFY CLI has been uninstalled. >> "%JIFFY_DIR%\uninstall_jiffy.cmd"
+echo echo You may need to restart your terminal for changes to take effect. >> "%JIFFY_DIR%\uninstall_jiffy.cmd"
+
+echo Try running `jiffy -v` to verify.
+endlocal
