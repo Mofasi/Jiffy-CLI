@@ -1,19 +1,15 @@
 @echo off
 set JIFFY_DIR=C:\JIFFY
 
-:: Check if JIFFY exists
-if exist %JIFFY_DIR% (
-    echo JIFFY is already installed.
-    echo Do you want to uninstall it before reinstalling? (Y/N)
-    set /p UNINSTALL_FIRST=
+echo Checking for existing JIFFY installation...
 
-    if /I "%UNINSTALL_FIRST%"=="Y" (
-        echo Running uninstallation...
-        call uninstall_jiffy.cmd
-    ) else (
-        echo Installation canceled. JIFFY remains installed.
-        exit
-    )
+:: If JIFFY exists, delete it
+if exist %JIFFY_DIR% (
+    echo JIFFY is already installed. Removing old installation...
+    rmdir /s /q %JIFFY_DIR%
+
+    :: Remove JIFFY from system PATH
+    powershell -Command "[System.Environment]::SetEnvironmentVariable('Path', ($env:Path -replace ';%JIFFY_DIR%'), 'Machine')"
 )
 
 echo Installing JIFFY CLI...
