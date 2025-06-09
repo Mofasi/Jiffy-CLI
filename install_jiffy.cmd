@@ -1,17 +1,21 @@
 @echo off
 setlocal enabledelayedexpansion
 
+:: --- Configuration ---
 set "JIFFY_DIR=C:\JIFFY"
 set "GITHUB_URL=https://github.com/Mofasi/Jiffy-CLI.git"
 
-echo Checking for existing JIFFY installation...
+:: --- Ensure we're not in a protected directory ---
+set "SAFE_DIR=%TEMP%\JiffyInstall"
+mkdir "%SAFE_DIR%" 2>nul
+cd /d "%SAFE_DIR%"
 
-:: Check if JIFFY installation exists
+:: --- Check existing installation ---
+echo Checking for existing JIFFY installation...
 if exist "%JIFFY_DIR%" (
-    echo JIFFY CLI is already installed.
+    echo JIFFY CLI is already installed at %JIFFY_DIR%
     
-    :: Check if JIFFY is in system PATH
-    echo Checking system PATH...
+    :: Check PATH registration
     echo %PATH% | findstr /i /c:"%JIFFY_DIR%" >nul
     if %ERRORLEVEL% EQU 0 (
         echo JIFFY CLI is registered in system PATH.
@@ -19,19 +23,18 @@ if exist "%JIFFY_DIR%" (
         echo JIFFY CLI is missing from system PATH.
     )
 
-    :: Prompt user for action
-    choice /c YN /m "Do you want to overwrite the current installation? (Y/N)"
+    :: Prompt for overwrite
+    choice /c YN /m "Overwrite existing installation? (Y/N)"
     if !errorlevel! EQU 2 (
         echo Installation canceled. JIFFY remains installed.
-        echo To uninstall, run `uninstall_jiffy.cmd`.
         exit /b
     )
     
-    echo Removing previous JIFFY installation...
+    :: Remove existing installation
+    echo Removing previous installation...
     rmdir /s /q "%JIFFY_DIR%" 2>nul
     
-    :: Properly remove from system PATH
-    echo Removing from system PATH...
+    :: Remove from PATH
     powershell -noprofile -command ^
         "$oldPath = [Environment]::GetEnvironmentVariable('Path', 'Machine');" ^
         "$newPath = ($oldPath -split ';' | Where-Object { $_ -ne '%JIFFY_DIR%' }) -join ';';" ^
@@ -39,56 +42,61 @@ if exist "%JIFFY_DIR%" (
         "[Environment]::SetEnvironmentVariable('Path', $newPath, 'Machine');"
 )
 
-:: Create unique temp directory in %TEMP%
-set "TEMP_CLONE=%TEMP%\Jiffy-CLI-%RANDOM%-%TIME::=_%"
-set "TEMP_CLONE=%TEMP_CLONE: =0%"
-mkdir "%TEMP_CLONE%" 2>nul
-
-:: Download repository using PowerShell to avoid git directory issues
-echo Downloading JIFFY CLI from GitHub...
-powershell -noprofile -command ^
-    "Set-Location '%TEMP_CLONE%';" ^
-    "git clone '%GITHUB_URL%' . 2>&1 | Out-Null;" ^
-    "if (-not (Test-Path 'jiffy.php')) { exit 1 }"
-
-if %ERRORLEVEL% NEQ 0 (
-    echo ERROR: Failed to download repository
-    rmdir /s /q "%TEMP_CLONE%" 2>nul
-    exit /b 1
-)
-
-:: Create installation directory
+:: --- Create installation directory ---
 mkdir "%JIFFY_DIR%" 2>nul
 
-:: Copy files to installation directory
-echo Installing JIFFY CLI...
-copy /y "%TEMP_CLONE%\jiffy.php" "%JIFFY_DIR%\" >nul
+:: --- Download repository directly to temp ---
+echo Downloading JIFFY CLI...
+set "TEMP_FILE=%TEMP%\jiffy-cli-%RANDOM%.zip"
+powershell -noprofile -command ^
+    "Invoke-WebRequest '%GITHUB_URL%/archive/refs/heads/main.zip' -OutFile '%TEMP_FILE%'"
 
-:: Create version command
+:: --- Extract only jiffy.php ---
+echo Extracting files...
+powershell -noprofile -command ^
+    "Expand-Archive -Path '%TEMP_FILE%' -DestinationPath '%TEMP%';" ^
+    "Move-Item -Path '%TEMP%\Jiffy-CLI-main\jiffy.php' -Destination '%JIFFY_DIR%' -Force"
+
+:: --- Cleanup temp files ---
+del /q "%TEMP_FILE%" 2>nul
+rmdir /s /q "%TEMP%\Jiffy-CLI-main" 2>nul
+
+:: --- Create version command ---
 echo @echo off > "%JIFFY_DIR%\jiffy_version.cmd"
 echo echo JIFFY CLI Version 1.0 >> "%JIFFY_DIR%\jiffy_version.cmd"
 
-:: Add to system PATH only if not present
-echo Adding to system PATH...
+:: --- Add to PATH ---
+echo Registering in system PATH...
 powershell -noprofile -command ^
     "$path = [Environment]::GetEnvironmentVariable('Path', 'Machine');" ^
     "if (-not ($path -split ';' -contains '%JIFFY_DIR%')) {" ^
         "[Environment]::SetEnvironmentVariable('Path', ($path + ';%JIFFY_DIR%'), 'Machine');" ^
     "}"
 
-:: Cleanup
-rmdir /s /q "%TEMP_CLONE%" 2>nul
-
-echo Installation complete!
-echo JIFFY CLI has been installed to: %JIFFY_DIR%
-
-:: Create uninstall script
+:: --- Create uninstaller ---
 echo @echo off > "%JIFFY_DIR%\uninstall_jiffy.cmd"
 echo echo Uninstalling JIFFY CLI... >> "%JIFFY_DIR%\uninstall_jiffy.cmd"
+echo echo Removing files... >> "%JIFFY_DIR%\uninstall_jiffy.cmd"
 echo rmdir /s /q "%JIFFY_DIR%" 2^>nul >> "%JIFFY_DIR%\uninstall_jiffy.cmd"
+echo echo Removing from PATH... >> "%JIFFY_DIR%\uninstall_jiffy.cmd"
 echo powershell -noprofile -command "$oldPath = [Environment]::GetEnvironmentVariable('Path', 'Machine');$newPath = ($oldPath -split ';' ^| Where-Object { $_ -ne '%JIFFY_DIR%' }) -join ';';[Environment]::SetEnvironmentVariable('Path', $newPath, 'Machine');" >> "%JIFFY_DIR%\uninstall_jiffy.cmd"
 echo echo JIFFY CLI has been uninstalled. >> "%JIFFY_DIR%\uninstall_jiffy.cmd"
-echo echo You may need to restart your terminal for changes to take effect. >> "%JIFFY_DIR%\uninstall_jiffy.cmd"
+echo echo You may need to restart your terminal. >> "%JIFFY_DIR%\uninstall_jiffy.cmd"
 
-echo Try running `jiffy -v` to verify.
+:: --- Final cleanup ---
+cd /d %~dp0
+rmdir /s /q "%SAFE_DIR%" 2>nul
+
+echo.
+echo ==============================================
+echo JIFFY CLI successfully installed to C:\JIFFY!
+echo ==============================================
+echo.
+echo To verify installation:
+echo   1. Open a NEW command prompt as administrator
+echo   2. Run: jiffy -v
+echo   3. You should see version information
+echo.
+echo To uninstall: Run C:\JIFFY\uninstall_jiffy.cmd
+echo.
 endlocal
