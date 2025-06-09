@@ -35,20 +35,24 @@ if exist "%JIFFY_DIR%" (
     echo Removing from system PATH...
     powershell -noprofile -command ^
         "$oldPath = [Environment]::GetEnvironmentVariable('Path', 'Machine');" ^
-        "$newPath = ($oldPath -split ';' | Where-Object { $_ -ne '%JIFFY_DIR%' }) -join ';';" ^
+        "$dir = '%JIFFY_DIR:\=\\%';" ^
+        "$newPath = $oldPath -replace [regex]::Escape($dir) + '(;|$)', '' -replace ';;',';';" ^
         "$newPath = $newPath.Trim(';');" ^
         "[Environment]::SetEnvironmentVariable('Path', $newPath, 'Machine');"
 )
 
 :: Create unique temp directory for cloning
-set "TEMP_CLONE=%TEMP%\Jiffy-CLI-Temp-%RANDOM%"
 if exist "%TEMP_CLONE%" rmdir /s /q "%TEMP_CLONE%" 2>nul
+mkdir "%TEMP_CLONE%" 2>nul
+
+:: Change working directory to temp location
+cd /d "%TEMP_CLONE%"
 
 :: Clone fresh repository to temp location
 echo Cloning JIFFY CLI from GitHub...
-git clone "%GITHUB_URL%" "%TEMP_CLONE%"
+git clone "%GITHUB_URL%" .
 
-if not exist "%TEMP_CLONE%\jiffy.php" (
+if not exist "jiffy.php" (
     echo ERROR: Repository clone failed or jiffy.php not found
     exit /b 1
 )
@@ -57,7 +61,7 @@ if not exist "%TEMP_CLONE%\jiffy.php" (
 mkdir "%JIFFY_DIR%" 2>nul
 
 :: Move files
-move /y "%TEMP_CLONE%\jiffy.php" "%JIFFY_DIR%\" >nul
+move /y "jiffy.php" "%JIFFY_DIR%\" >nul
 
 :: Create version command
 echo @echo off > "%JIFFY_DIR%\jiffy_version.cmd"
@@ -72,7 +76,10 @@ powershell -noprofile -command ^
     "}"
 
 :: Cleanup
+cd /d %~dp0
 rmdir /s /q "%TEMP_CLONE%" 2>nul
 
-echo Installation complete! Try running `jiffy -v` to verify.
+echo Installation complete!
+echo JIFFY CLI has been installed to: %JIFFY_DIR%
+echo Try running `jiffy -v` to verify.
 endlocal
