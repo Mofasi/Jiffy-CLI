@@ -5,7 +5,7 @@ set GITHUB_URL=https://github.com/Mofasi/Jiffy-CLI.git
 
 echo Checking for existing JIFFY installation...
 
-:: Check if JIFFY directory exists
+:: Check if JIFFY installation exists
 if exist %JIFFY_DIR% (
     echo JIFFY CLI is already installed.
     
@@ -35,12 +35,14 @@ if exist %JIFFY_DIR% (
     )
 )
 
-:: Clone fresh JIFFY repository
-echo Cloning JIFFY CLI from GitHub...
+:: Check if Jiffy-CLI repo exists and delete it before cloning
 if exist %REPO_DIR% (
     echo Existing repository found. Removing Jiffy-CLI repo...
     rmdir /s /q %REPO_DIR%
 )
+
+:: Clone fresh JIFFY repository
+echo Cloning JIFFY CLI from GitHub...
 git clone %GITHUB_URL%
 
 :: Move JIFFY into correct system directory
@@ -55,6 +57,5 @@ powershell -Command "[System.Environment]::SetEnvironmentVariable('Path', ($env:
 echo @echo off > %JIFFY_DIR%\jiffy_version.cmd
 echo echo JIFFY CLI Version 1.0 > %JIFFY_DIR%\jiffy_version.cmd
 
-echo Installation complete! 
-echo Jiffy installed Globally and added to path, Try running `php jiffy -v` to verify.
+echo Installation complete! Try running `jiffy -v` to verify.
 exit
