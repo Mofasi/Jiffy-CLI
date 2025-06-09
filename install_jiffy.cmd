@@ -2,7 +2,6 @@
 setlocal enabledelayedexpansion
 
 set "JIFFY_DIR=C:\JIFFY"
-set "TEMP_CLONE=%TEMP%\Jiffy-CLI-Temp-%RANDOM%"
 set "GITHUB_URL=https://github.com/Mofasi/Jiffy-CLI.git"
 
 echo Checking for existing JIFFY installation...
@@ -35,24 +34,19 @@ if exist "%JIFFY_DIR%" (
     echo Removing from system PATH...
     powershell -noprofile -command ^
         "$oldPath = [Environment]::GetEnvironmentVariable('Path', 'Machine');" ^
-        "$dir = '%JIFFY_DIR:\=\\%';" ^
-        "$newPath = $oldPath -replace [regex]::Escape($dir) + '(;|$)', '' -replace ';;',';';" ^
+        "$newPath = ($oldPath -split ';' | Where-Object { $_ -ne '%JIFFY_DIR%' }) -join ';';" ^
         "$newPath = $newPath.Trim(';');" ^
         "[Environment]::SetEnvironmentVariable('Path', $newPath, 'Machine');"
 )
 
-:: Create unique temp directory for cloning
-if exist "%TEMP_CLONE%" rmdir /s /q "%TEMP_CLONE%" 2>nul
-mkdir "%TEMP_CLONE%" 2>nul
+:: Create unique temp file name for cloning
+set "TEMP_CLONE=%TEMP%\Jiffy-CLI-%RANDOM%"
 
-:: Change working directory to temp location
-cd /d "%TEMP_CLONE%"
-
-:: Clone fresh repository to temp location
+:: Clone directly to temporary location
 echo Cloning JIFFY CLI from GitHub...
-git clone "%GITHUB_URL%" .
+git clone --depth 1 "%GITHUB_URL%" "%TEMP_CLONE%"
 
-if not exist "jiffy.php" (
+if not exist "%TEMP_CLONE%\jiffy.php" (
     echo ERROR: Repository clone failed or jiffy.php not found
     exit /b 1
 )
@@ -60,8 +54,9 @@ if not exist "jiffy.php" (
 :: Create installation directory
 mkdir "%JIFFY_DIR%" 2>nul
 
-:: Move files
-move /y "jiffy.php" "%JIFFY_DIR%\" >nul
+:: Copy files to installation directory
+echo Installing JIFFY CLI...
+copy /y "%TEMP_CLONE%\jiffy.php" "%JIFFY_DIR%\" >nul
 
 :: Create version command
 echo @echo off > "%JIFFY_DIR%\jiffy_version.cmd"
@@ -73,13 +68,4 @@ powershell -noprofile -command ^
     "$path = [Environment]::GetEnvironmentVariable('Path', 'Machine');" ^
     "if (-not ($path -split ';' -contains '%JIFFY_DIR%')) {" ^
         "[Environment]::SetEnvironmentVariable('Path', ($path + ';%JIFFY_DIR%'), 'Machine');" ^
-    "}"
-
-:: Cleanup
-cd /d %~dp0
-rmdir /s /q "%TEMP_CLONE%" 2>nul
-
-echo Installation complete!
-echo JIFFY CLI has been installed to: %JIFFY_DIR%
-echo Try running `jiffy -v` to verify.
-endlocal
+   
