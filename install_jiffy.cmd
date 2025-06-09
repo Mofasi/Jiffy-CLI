@@ -4,15 +4,14 @@ set JIFFY_DIR=C:\JIFFY
 :: Check if JIFFY exists
 if exist %JIFFY_DIR% (
     echo JIFFY is already installed.
-    echo Do you want to overwrite the current installation and path? (Y/N)
-    set /p OVERWRITE=
-    
-    if /I "%OVERWRITE%"=="Y" (
-        echo Overwriting current JIFFY installation...
-        rmdir /s /q %JIFFY_DIR%
+    echo Do you want to uninstall it before reinstalling? (Y/N)
+    set /p UNINSTALL_FIRST=
+
+    if /I "%UNINSTALL_FIRST%"=="Y" (
+        echo Running uninstallation...
+        call uninstall_jiffy.cmd
     ) else (
-        echo Action Aborted. JIFFY remains installed.
-        echo If you want to uninstall first, run `uninstall_jiffy.cmd`.
+        echo Installation canceled. JIFFY remains installed.
         exit
     )
 )
