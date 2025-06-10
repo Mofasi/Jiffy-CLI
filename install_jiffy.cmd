@@ -26,9 +26,12 @@ if exist "%JIFFY_DIR%" (
         echo Installation canceled. JIFFY remains installed.
         exit /b
     )
+    
     echo Removing previous installation...
+    :: IMPORTANT: Change to a safe directory before removing the installation directory.
+    cd /d "%TEMP%"
     rmdir /s /q "%JIFFY_DIR%" 2>nul
-    :: Remove from PATH using a one-liner PowerShell command
+    :: Clean PATH using a one-liner PowerShell command
     powershell -noprofile -command "[Environment]::SetEnvironmentVariable('Path', (([Environment]::GetEnvironmentVariable('Path','Machine') -split ';' | Where-Object { $_ -ne '%JIFFY_DIR%' }) -join ';'), 'Machine')"
 )
 
