@@ -83,11 +83,16 @@ echo php "%JIFFY_DIR%\jiffy.php" %%* >> "%JIFFY_DIR%\jiffy.cmd"
 
 :: --- Add JIFFY to PATH ---
 echo Registering JIFFY CLI in system PATH...
-powershell -noprofile -command ^
-    "$path = [Environment]::GetEnvironmentVariable('Path', 'Machine');" ^
-    "if (-not ($path -split ';' -contains '%JIFFY_DIR%')) {" ^
-        "[Environment]::SetEnvironmentVariable('Path', ($path + ';%JIFFY_DIR%'), 'Machine');" ^
-    "}"
+powershell -Command "& {
+    $currentPath = [System.Environment]::GetEnvironmentVariable('Path', 'Machine');
+    if ($currentPath -notlike '*C:\JIFFY*') {
+        $newPath = $currentPath + ';C:\JIFFY';
+        [System.Environment]::SetEnvironmentVariable('Path', $newPath, 'Machine');
+        echo '✅ JIFFY CLI successfully added to system PATH!';
+    } else {
+        echo '⚠️ JIFFY CLI was already in system PATH.';
+    }
+}"
 
 :: --- Verify PATH setup ---
 echo %PATH% | findstr /C:"%JIFFY_DIR%" >nul
