@@ -3,12 +3,12 @@ setlocal enabledelayedexpansion
 
 :: --- Configuration ---
 set "JIFFY_DIR=C:\JIFFY"
-set "GITHUB_URL=https://github.com/Mofasi/Jiffy-CLI.git"
+set "GITHUB_URL=https://github.com/Mofasi/Jiffy-CLI"
+set "TEMP_DIR=%TEMP%\JiffyInstall"
 
 :: --- Ensure we're not in a protected directory ---
-set "SAFE_DIR=%TEMP%\JiffyInstall"
-mkdir "%SAFE_DIR%" 2>nul
-cd /d "%SAFE_DIR%"
+mkdir "%TEMP_DIR%" 2>nul
+cd /d "%TEMP_DIR%"
 
 :: --- Check existing installation ---
 echo Checking for existing JIFFY installation...
@@ -45,21 +45,37 @@ if exist "%JIFFY_DIR%" (
 :: --- Create installation directory ---
 mkdir "%JIFFY_DIR%" 2>nul
 
-:: --- Download repository directly to temp ---
+:: --- Download repository ---
 echo Downloading JIFFY CLI...
-set "TEMP_FILE=%TEMP%\jiffy-cli-%RANDOM%.zip"
+set "TEMP_FILE=%TEMP%\jiffy-cli.zip"
 powershell -noprofile -command ^
-    "Invoke-WebRequest '%GITHUB_URL%/archive/refs/heads/main.zip' -OutFile '%TEMP_FILE%'"
+    "Invoke-WebRequest '%GITHUB_URL%/archive/main.zip' -OutFile '%TEMP_FILE%'"
 
-:: --- Extract only jiffy.php ---
+:: --- Verify download success ---
+if not exist "%TEMP_FILE%" (
+    echo ERROR: Failed to download JIFFY CLI. Check GitHub URL.
+    exit /b
+)
+
+:: --- Extract files ---
 echo Extracting files...
 powershell -noprofile -command ^
-    "Expand-Archive -Path '%TEMP_FILE%' -DestinationPath '%TEMP%';" ^
-    "Move-Item -Path '%TEMP%\Jiffy-CLI-main\jiffy.php' -Destination '%JIFFY_DIR%' -Force"
+    "Expand-Archive -Path '%TEMP_FILE%' -DestinationPath '%TEMP_DIR%'"
+
+:: --- Detect correct extracted folder ---
+for /d %%i in ("%TEMP_DIR%\Jiffy-CLI*") do set EXTRACTED_DIR=%%i
+
+:: --- Move jiffy.php to installation directory ---
+if exist "%EXTRACTED_DIR%\jiffy.php" (
+    move "%EXTRACTED_DIR%\jiffy.php" "%JIFFY_DIR%" /Y
+) else (
+    echo ERROR: jiffy.php not found in extracted files.
+    exit /b
+)
 
 :: --- Cleanup temp files ---
 del /q "%TEMP_FILE%" 2>nul
-rmdir /s /q "%TEMP%\Jiffy-CLI-main" 2>nul
+rmdir /s /q "%EXTRACTED_DIR%" 2>nul
 
 :: --- Create version command ---
 echo @echo off > "%JIFFY_DIR%\jiffy_version.cmd"
@@ -85,7 +101,7 @@ echo echo You may need to restart your terminal. >> "%JIFFY_DIR%\uninstall_jiffy
 
 :: --- Final cleanup ---
 cd /d %~dp0
-rmdir /s /q "%SAFE_DIR%" 2>nul
+rmdir /s /q "%TEMP_DIR%" 2>nul
 
 echo.
 echo ==============================================
@@ -94,9 +110,4 @@ echo ==============================================
 echo.
 echo To verify installation:
 echo   1. Open a NEW command prompt as administrator
-echo   2. Run: jiffy -v
-echo   3. You should see version information
-echo.
-echo To uninstall: Run C:\JIFFY\uninstall_jiffy.cmd
-echo.
-endlocal
+echo   2. Run: jiffy
