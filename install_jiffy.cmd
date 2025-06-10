@@ -110,4 +110,9 @@ echo ==============================================
 echo.
 echo To verify installation:
 echo   1. Open a NEW command prompt as administrator
-echo   2. Run: jiffy
+echo   2. Run: jiffy -v
+echo   3. You should see version information
+echo.
+echo To uninstall: Run C:\JIFFY\uninstall_jiffy.cmd
+echo.
+endlocal
