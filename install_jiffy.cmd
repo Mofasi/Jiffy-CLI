@@ -85,8 +85,8 @@ echo php "%JIFFY_DIR%\jiffy.php" %%* >> "%JIFFY_DIR%\jiffy.cmd"
 echo Registering JIFFY CLI in system PATH...
 powershell -Command "& {
     $currentPath = [System.Environment]::GetEnvironmentVariable('Path', 'Machine');
-    if ($currentPath -notlike '*C:\Jiffy-CLI*') {
-        $newPath = $currentPath + ';C:\Jiffy-CLI';
+    if ($currentPath -notlike '*C:\JIFFY*') {
+        $newPath = $currentPath + ';C:\JIFFY';
         [System.Environment]::SetEnvironmentVariable('Path', $newPath, 'Machine');
         echo '✅ JIFFY CLI successfully added to system PATH!';
     } else {
