@@ -17,7 +17,7 @@ set /p CONFIRM_UNINSTALL=
 if /I "%CONFIRM_UNINSTALL%"=="Y" (
     echo Uninstalling JIFFY CLI...
     rmdir /s /q "%JIFFY_DIR%"
-    :: Remove JIFFY_DIR from system PATH
+    :: Remove from PATH
     powershell -noprofile -command "[Environment]::SetEnvironmentVariable('Path', ($env:Path -replace ';%JIFFY_DIR%',''), 'Machine')"
     echo ==============================================
     echo ✅ JIFFY CLI has been successfully removed!
