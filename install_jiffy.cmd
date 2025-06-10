@@ -6,7 +6,7 @@ set "JIFFY_DIR=C:\Jiffy-CLI"
 set "GITHUB_URL=https://github.com/Mofasi/Jiffy-CLI"
 set "TEMP_DIR=%TEMP%\JiffyInstall"
 
-:: --- Ensure we're not in a protected directory ---
+:: --- Prepare temp space ---
 mkdir "%TEMP_DIR%" 2>nul
 cd /d "%TEMP_DIR%"
 
@@ -14,8 +14,6 @@ cd /d "%TEMP_DIR%"
 echo Checking for existing JIFFY installation...
 if exist "%JIFFY_DIR%" (
     echo JIFFY CLI is already installed at %JIFFY_DIR%
-    
-    :: Check PATH registration
     echo %PATH% | findstr /i /c:"%JIFFY_DIR%" >nul
     if %ERRORLEVEL% EQU 0 (
         echo JIFFY CLI is registered in system PATH.
@@ -23,87 +21,58 @@ if exist "%JIFFY_DIR%" (
         echo JIFFY CLI is missing from system PATH.
     )
 
-    :: Prompt for overwrite
+    :: Prompt user for overwrite
     choice /c YN /m "Overwrite existing installation? (Y/N)"
     if !errorlevel! EQU 2 (
         echo Installation canceled. JIFFY remains installed.
         exit /b
     )
-    
-    :: Remove existing installation
+
     echo Removing previous installation...
     rmdir /s /q "%JIFFY_DIR%" 2>nul
-    
-    :: Remove from PATH
-    powershell -noprofile -command "& {
-        $oldPath = [System.Environment]::GetEnvironmentVariable('Path', 'Machine');
-        $newPath = ($oldPath -split ';' | Where-Object { $_ -ne 'C:\Jiffy-CLI' }) -join ';';
-        [System.Environment]::SetEnvironmentVariable('Path', $newPath, 'Machine');
-    }"
+
+    :: Clean PATH
+    powershell -noprofile -command "[Environment]::SetEnvironmentVariable('Path', (([Environment]::GetEnvironmentVariable('Path','Machine') -split ';' | Where-Object { \$_ -ne '%JIFFY_DIR%' }) -join ';'), 'Machine')"
 )
 
 :: --- Create installation directory ---
 mkdir "%JIFFY_DIR%" 2>nul
 
-:: --- Download repository ---
+:: --- Download and extract ---
 echo Downloading JIFFY CLI...
 set "TEMP_FILE=%TEMP%\jiffy-cli.zip"
-powershell -noprofile -command "& {
-    Invoke-WebRequest 'https://github.com/Mofasi/Jiffy-CLI/archive/main.zip' -OutFile '%TEMP_FILE%'
-}"
+powershell -noprofile -command "Invoke-WebRequest '%GITHUB_URL%/archive/main.zip' -OutFile '%TEMP_FILE%'"
 
-:: --- Verify download success ---
 if not exist "%TEMP_FILE%" (
-    echo ERROR: Failed to download JIFFY CLI. Check GitHub URL.
+    echo ERROR: Failed to download JIFFY CLI archive.
     exit /b
 )
 
-:: --- Extract files ---
 echo Extracting files...
-powershell -noprofile -command "& {
-    Expand-Archive -Path '%TEMP_FILE%' -DestinationPath '%TEMP_DIR%'
-}"
+powershell -noprofile -command "Expand-Archive -Path '%TEMP_FILE%' -DestinationPath '%TEMP_DIR%'"
 
-:: --- Detect correct extracted folder ---
+:: --- Locate extracted folder ---
 for /d %%i in ("%TEMP_DIR%\Jiffy-CLI*") do set EXTRACTED_DIR=%%i
 
-:: --- Move jiffy.php to installation directory ---
+:: --- Move jiffy.php ---
 if exist "%EXTRACTED_DIR%\jiffy.php" (
     move "%EXTRACTED_DIR%\jiffy.php" "%JIFFY_DIR%" /Y
 ) else (
-    echo ERROR: jiffy.php not found in extracted files.
+    echo ERROR: jiffy.php not found.
     exit /b
 )
 
-:: --- Cleanup temp files ---
+:: --- Cleanup temp ---
 del /q "%TEMP_FILE%" 2>nul
 rmdir /s /q "%EXTRACTED_DIR%" 2>nul
 
-:: --- Create wrapper command (`jiffy.cmd`) to make JIFFY globally executable ---
+:: --- Create wrapper command ---
 echo @echo off > "%JIFFY_DIR%\jiffy.cmd"
 echo php "%JIFFY_DIR%\jiffy.php" %%* >> "%JIFFY_DIR%\jiffy.cmd"
 
-:: --- Add JIFFY CLI to system PATH ---
+:: --- Add JIFFY to PATH ---
 echo Registering JIFFY CLI in system PATH...
-powershell -noprofile -command "& {
-    $currentPath = [System.Environment]::GetEnvironmentVariable('Path', 'Machine');
-    if ($currentPath -notlike '*C:\Jiffy-CLI*') {
-        $newPath = $currentPath + ';C:\Jiffy-CLI';
-        [System.Environment]::SetEnvironmentVariable('Path', $newPath, 'Machine');
-        Write-Host '✅ JIFFY CLI successfully added to system PATH!';
-    } else {
-        Write-Host '⚠️ JIFFY CLI was already in system PATH.';
-    }
-}"
-
-:: --- Verify PATH setup ---
-echo %PATH% | findstr /C:"C:\Jiffy-CLI" >nul
-if %ERRORLEVEL% EQU 0 (
-    echo ✅ JIFFY CLI successfully added to system PATH!
-) else (
-    echo ❌ WARNING: JIFFY CLI was installed, but PATH update failed.
-    echo You may need to manually add C:\Jiffy-CLI to your system PATH.
-)
+powershell -noprofile -command "[Environment]::SetEnvironmentVariable('Path', (([Environment]::GetEnvironmentVariable('Path','Machine') -split ';' + '%JIFFY_DIR%') | Select-Object -Unique) -join ';'), 'Machine')"
 
 :: --- Create version command ---
 echo @echo off > "%JIFFY_DIR%\jiffy_version.cmd"
@@ -112,16 +81,10 @@ echo echo JIFFY CLI Version 1.0 >> "%JIFFY_DIR%\jiffy_version.cmd"
 :: --- Create uninstaller ---
 echo @echo off > "%JIFFY_DIR%\uninstall_jiffy.cmd"
 echo echo Uninstalling JIFFY CLI... >> "%JIFFY_DIR%\uninstall_jiffy.cmd"
-echo echo Removing files... >> "%JIFFY_DIR%\uninstall_jiffy.cmd"
-echo rmdir /s /q "%JIFFY_DIR%" 2^>nul >> "%JIFFY_DIR%\uninstall_jiffy.cmd"
-echo echo Removing from PATH... >> "%JIFFY_DIR%\uninstall_jiffy.cmd"
-echo powershell -noprofile -command "& {
-    $oldPath = [System.Environment]::GetEnvironmentVariable('Path', 'Machine');
-    $newPath = ($oldPath -split ';' | Where-Object { $_ -ne 'C:\Jiffy-CLI' }) -join ';';
-    [System.Environment]::SetEnvironmentVariable('Path', $newPath, 'Machine');
-}" >> "%JIFFY_DIR%\uninstall_jiffy.cmd"
-echo echo JIFFY CLI has been uninstalled. >> "%JIFFY_DIR%\uninstall_jiffy.cmd"
-echo echo You may need to restart your terminal. >> "%JIFFY_DIR%\uninstall_jiffy.cmd"
+echo rmdir /s /q "%JIFFY_DIR%" >> "%JIFFY_DIR%\uninstall_jiffy.cmd"
+echo powershell -noprofile -command "[Environment]::SetEnvironmentVariable('Path', (([Environment]::GetEnvironmentVariable('Path','Machine') -split ';' | Where-Object { \$_ -ne '%JIFFY_DIR%' }) -join ';'), 'Machine')" >> "%JIFFY_DIR%\uninstall_jiffy.cmd"
+echo echo Done. >> "%JIFFY_DIR%\uninstall_jiffy.cmd"
+echo pause >> "%JIFFY_DIR%\uninstall_jiffy.cmd"
 
 :: --- Final cleanup ---
 cd /d %~dp0
@@ -129,14 +92,12 @@ rmdir /s /q "%TEMP_DIR%" 2>nul
 
 echo.
 echo ==============================================
-echo ✅ JIFFY CLI successfully installed to C:\Jiffy-CLI!
-echo ✅ JIFFY CLI successfully added to system PATH!
+echo ✅ JIFFY CLI successfully installed to %JIFFY_DIR%!
+echo ✅ JIFFY CLI should now be available globally.
 echo ==============================================
 echo.
 echo To verify installation:
-echo   1. Open a NEW command prompt as administrator
-echo   2. Run: jiffy -v
-echo   3. You should see version information
+echo   Open a NEW command prompt and run: jiffy -v
 echo.
 echo To uninstall: Run C:\Jiffy-CLI\uninstall_jiffy.cmd
 echo.
