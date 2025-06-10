@@ -5,6 +5,9 @@ set JIFFY_DIR=C:\JIFFY
 if not exist %JIFFY_DIR% (
     echo JIFFY CLI is not installed.
     echo To install, run `install_jiffy.cmd`.
+    echo.
+    echo Press any key to continue...
+    pause >nul
     exit
 )
 
@@ -28,4 +31,8 @@ if /I "%CONFIRM_UNINSTALL%"=="Y" (
     echo ❌ Uninstallation canceled. JIFFY CLI remains installed.
     echo ==============================================
 )
+
+echo.
+echo Press any key to continue...
+pause >nul
 exit
