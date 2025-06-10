@@ -77,17 +77,30 @@ if exist "%EXTRACTED_DIR%\jiffy.php" (
 del /q "%TEMP_FILE%" 2>nul
 rmdir /s /q "%EXTRACTED_DIR%" 2>nul
 
-:: --- Create version command ---
-echo @echo off > "%JIFFY_DIR%\jiffy_version.cmd"
-echo echo JIFFY CLI Version 1.0 >> "%JIFFY_DIR%\jiffy_version.cmd"
+:: --- Create wrapper command (`jiffy.cmd`) to make JIFFY globally executable ---
+echo @echo off > "%JIFFY_DIR%\jiffy.cmd"
+echo php "%JIFFY_DIR%\jiffy.php" %%* >> "%JIFFY_DIR%\jiffy.cmd"
 
-:: --- Add to PATH ---
-echo Registering in system PATH...
+:: --- Add JIFFY to PATH ---
+echo Registering JIFFY CLI in system PATH...
 powershell -noprofile -command ^
     "$path = [Environment]::GetEnvironmentVariable('Path', 'Machine');" ^
     "if (-not ($path -split ';' -contains '%JIFFY_DIR%')) {" ^
         "[Environment]::SetEnvironmentVariable('Path', ($path + ';%JIFFY_DIR%'), 'Machine');" ^
     "}"
+
+:: --- Verify PATH setup ---
+echo %PATH% | findstr /C:"%JIFFY_DIR%" >nul
+if %ERRORLEVEL% EQU 0 (
+    echo ✅ JIFFY CLI successfully added to system PATH!
+) else (
+    echo ❌ WARNING: JIFFY CLI was installed, but PATH update failed.
+    echo You may need to manually add C:\JIFFY to your system PATH.
+)
+
+:: --- Create version command ---
+echo @echo off > "%JIFFY_DIR%\jiffy_version.cmd"
+echo echo JIFFY CLI Version 1.0 >> "%JIFFY_DIR%\jiffy_version.cmd"
 
 :: --- Create uninstaller ---
 echo @echo off > "%JIFFY_DIR%\uninstall_jiffy.cmd"
@@ -105,7 +118,8 @@ rmdir /s /q "%TEMP_DIR%" 2>nul
 
 echo.
 echo ==============================================
-echo JIFFY CLI successfully installed to C:\JIFFY!
+echo ✅ JIFFY CLI successfully installed to C:\JIFFY!
+echo ✅ JIFFY CLI successfully added to system PATH!
 echo ==============================================
 echo.
 echo To verify installation:
