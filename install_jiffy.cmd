@@ -20,51 +20,34 @@ if exist "%JIFFY_DIR%" (
     ) else (
         echo JIFFY CLI is missing from system PATH.
     )
-    :: Prompt for overwrite
     choice /c YN /m "Overwrite existing installation? (Y/N)"
     if !errorlevel! EQU 2 (
         echo Installation canceled. JIFFY remains installed.
         exit /b
     )
-    
     echo Removing previous installation...
-    :: IMPORTANT: Change to a safe directory before removing the installation directory.
+    :: Change to a safe directory before deleting the install folder.
     cd /d "%TEMP%"
     rmdir /s /q "%JIFFY_DIR%" 2>nul
-    :: Clean PATH using a one-liner PowerShell command
+    :: Remove from PATH
     powershell -noprofile -command "[Environment]::SetEnvironmentVariable('Path', (([Environment]::GetEnvironmentVariable('Path','Machine') -split ';' | Where-Object { $_ -ne '%JIFFY_DIR%' }) -join ';'), 'Machine')"
 )
 
-:: --- Create installation directory ---
-mkdir "%JIFFY_DIR%" 2>nul
-
-:: --- Download and extract ---
-echo Downloading JIFFY CLI...
-set "TEMP_FILE=%TEMP%\jiffy-cli.zip"
-powershell -noprofile -command "Invoke-WebRequest '%GITHUB_URL%/archive/main.zip' -OutFile '%TEMP_FILE%'"
-if not exist "%TEMP_FILE%" (
-    echo ERROR: Failed to download JIFFY CLI archive.
-    exit /b
-)
-echo Extracting files...
-powershell -noprofile -command "Expand-Archive -Path '%TEMP_FILE%' -DestinationPath '%TEMP_DIR%'"
-
-:: --- Locate the extracted folder (assumes GitHub names it Jiffy-CLI-main) ---
-for /d %%i in ("%TEMP_DIR%\Jiffy-CLI-main") do set EXTRACTED_DIR=%%i
-
-:: --- Move jiffy.php ---
-if exist "%EXTRACTED_DIR%\jiffy.php" (
-    move "%EXTRACTED_DIR%\jiffy.php" "%JIFFY_DIR%" /Y
-) else (
-    echo ERROR: jiffy.php not found in extracted folder.
+:: --- Clone the repository ---
+echo Cloning JIFFY CLI from GitHub...
+git clone %GITHUB_URL%.git "%JIFFY_DIR%"
+if errorlevel 1 (
+    echo ERROR: Git clone failed.
     exit /b
 )
 
-:: --- Cleanup temp files ---
-del /q "%TEMP_FILE%" 2>nul
-rmdir /s /q "%EXTRACTED_DIR%" 2>nul
+:: --- Verify jiffy.php exists ---
+if not exist "%JIFFY_DIR%\jiffy.php" (
+    echo ERROR: jiffy.php not found after clone.
+    exit /b
+)
 
-:: --- Create wrapper command (jiffy.cmd) to run jiffy.php globally ---
+:: --- Create wrapper command (jiffy.cmd) to run jiffy globally ---
 echo @echo off > "%JIFFY_DIR%\jiffy.cmd"
 echo php "%JIFFY_DIR%\jiffy.php" %%* >> "%JIFFY_DIR%\jiffy.cmd"
 
@@ -91,7 +74,7 @@ rmdir /s /q "%TEMP_DIR%" 2>nul
 echo.
 echo ==============================================
 echo ✅ JIFFY CLI successfully installed to %JIFFY_DIR%!
-echo ✅ JIFFY CLI should now be available globally.
+echo ✅ JIFFY CLI is available globally.
 echo ==============================================
 echo.
 echo To verify installation:
