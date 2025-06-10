@@ -19,8 +19,13 @@ if /I "%CONFIRM_UNINSTALL%"=="Y" (
     :: Remove JIFFY from system PATH
     powershell -Command "[System.Environment]::SetEnvironmentVariable('Path', ($env:Path -replace ';%JIFFY_DIR%'), 'Machine')"
 
-    echo JIFFY CLI has been removed.
+    echo ==============================================
+    echo ✅ JIFFY CLI has been successfully removed!
+    echo ==============================================
+    echo You may need to restart your terminal for changes to take effect.
 ) else (
-    echo Uninstallation canceled.
+    echo ==============================================
+    echo ❌ Uninstallation canceled. JIFFY CLI remains installed.
+    echo ==============================================
 )
 exit
