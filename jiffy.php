@@ -78,3 +78,31 @@ function createProject($name) {
     echo "Creating new JIFFY project: $name...\n";
     mkdir($name);
     mkdir("$name/public");
+    mkdir("$name/core");
+    mkdir("$name/core/templates", 0777, true); // Create core/templates directory
+    mkdir("$name/config");
+    mkdir("$name/storage");
+    echo "Project '$name' initialized!\n";
+}
+
+function startServer() {
+    echo "Starting local development server...\n";
+    exec("php -S localhost:8000 -t public");
+}
+
+function createRoute($routeName) {
+    echo "Creating new route: $routeName...\n";
+    if (!is_dir("core/templates")) {
+        mkdir("core/templates", 0777, true);
+    }
+    file_put_contents("core/templates/$routeName.php", "<h1>$routeName Page</h1>");
+    echo "Route '$routeName' added!\n";
+}
+
+function listProjectStructure() {
+    echo "Project structure:\n";
+    exec("dir", $output);
+    foreach ($output as $line) {
+        echo $line . "\n";
+    }
+}
