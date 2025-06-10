@@ -39,7 +39,6 @@ if ($argc < 2) {
 
 $command = $argv[1];
 
-// Execute command
 switch ($command) {
     case "-v":
     case "-version":
@@ -75,30 +74,7 @@ switch ($command) {
         echo "Run `jiffy` to see available commands.\n";
 }
 
-// Function definitions
-
 function createProject($name) {
     echo "Creating new JIFFY project: $name...\n";
     mkdir($name);
     mkdir("$name/public");
-    mkdir("$name/core");
-    mkdir("$name/config");
-    mkdir("$name/storage");
-    echo "Project '$name' initialized!\n";
-}
-
-function startServer() {
-    echo "Starting local development server...\n";
-    exec("php -S localhost:8000 -t public");
-}
-
-function createRoute($routeName) {
-    echo "Creating new route: $routeName...\n";
-    file_put_contents("core/templates/$routeName.php", "<h1>$routeName Page</h1>");
-    echo "Route '$routeName' added!\n";
-}
-
-function listProjectStructure() {
-    echo "Project structure:\n";
-    exec("ls -R");
-}
